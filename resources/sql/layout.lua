@@ -1,5 +1,5 @@
 --[[
-Copyright (c) 2010 MTA: Paradise
+Copyright (c) 2021 MTA: Paradise Extended
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -15,7 +15,11 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 ]]
 
-local allowUpdate = get( 'auto_update' ) ~= 0 -- change this setting to 0 to only print the required queries to console but not actually change stuff, removing it or setting it to anything but 0 leaves it enabled
+--[[
+	Change this setting to 0 to only print the required queries to console but not actually change stuff,
+	 removing it or setting it to anything but 0 leaves it enabled.
+]]
+local allowUpdate = get( 'auto_update' ) ~= 0
 
 --
 

@@ -1,5 +1,5 @@
 <!--
-Copyright (c) 2010 MTA: Paradise
+Copyright (c) 2021 MTA: Paradise Extended
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -89,4 +89,6 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 			(bool) true if the table was created, false if it did already exist, (nil) if an error occured (first return being false)
 	-->
 	<export function="create_table"/>
+
+	<oop>true</oop>
 </meta>

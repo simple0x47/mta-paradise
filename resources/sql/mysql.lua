@@ -1,5 +1,5 @@
 --[[
-Copyright (c) 2010 MTA: Paradise
+Copyright (c) 2021 MTA: Paradise Extended
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -16,10 +16,19 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 ]]
 
 local connection = nil
-local connection = nil
-local null = nil
-local results = { }
-local max_results = 128
+local query_handles = { }
+local max_query_handles = 128
+local poll_timeout = get( "poll_timeout" ) or 500
+
+local function createHostString( server, db, port, socket )
+	local host_string = "dbname=" .. db .. ";host=" .. server .. ";port=" .. 3306
+
+	if (socket ~= nil) then
+		host_string = host_string .. ";unix_socket=" .. socket
+	end
+
+	return host_string
+end
 
 -- connection functions
 local function connect( )
@@ -29,14 +38,17 @@ local function connect( )
 	local password = get( "password" ) or ""
 	local db = get( "database" ) or "mta"
 	local port = get( "port" ) or 3306
-	local socket = get( "socket" ) or nil
+	local socket = get( "socket" ) or ""
 	
 	-- connect
-	connection = mysql_connect ( server, user, password, db, port, socket )
+	local host_string = createHostString( server, db, port, socket )
+	connection = Connection( "mysql", host_string, user, password )
+
 	if connection then
 		if user == "root" then
 			setTimer( outputDebugString, 100, 1, "Connecting to your MySQL as 'root' is strongly discouraged.", 2 )
 		end
+
 		return true
 	else
 		outputDebugString ( "Connection to MySQL Failed.", 1 )
@@ -45,50 +57,42 @@ local function connect( )
 end
 
 local function disconnect( )
-	if connection and mysql_ping( connection ) then
-		mysql_close( connection )
+	if connection then
+		connection:destroy( )
+
+		connection = nil
 	end
 end
 
-local function checkConnection( )
-	if not connection or not mysql_ping( connection ) then
+local function reconnectIfDisconnected( )
+	if not connection then
 		return connect( )
 	end
+
 	return true
 end
 
 addEventHandler( "onResourceStart", resourceRoot,
 	function( )
-		if not mysql_connect then
-			if hasObjectPermissionTo( resource, "function.shutdown" ) then
-				shutdown( "MySQL module missing." )
-			end
-			cancelEvent( true, "MySQL module missing." )
-		elseif not hasObjectPermissionTo( resource, "function.mysql_connect" ) then
+		if not hasObjectPermissionTo( resource, "function.mysql_connect" ) then
 			if hasObjectPermissionTo( resource, "function.shutdown" ) then
 				shutdown( "Insufficient ACL rights for mysql resource." )
 			end
 			cancelEvent( true, "Insufficient ACL rights for mysql resource." )
 		elseif not connect( ) then
-			if connection then
-				outputDebugString( mysql_error( connection ), 1 )
-			end
-			
 			if hasObjectPermissionTo( resource, "function.shutdown" ) then
 				shutdown( "MySQL failed to connect." )
 			end
 			cancelEvent( true, "MySQL failed to connect." )
-		else
-			null = mysql_null( )
 		end
 	end
 )
 
 addEventHandler( "onResourceStop", resourceRoot,
 	function( )
-		for key, value in pairs( results ) do
-			mysql_free_result( value.r )
-			outputDebugString( "Query not free()'d: " .. value.q, 2 )
+		for key, value in pairs( query_handles ) do
+			value.instance:free( )
+			outputDebugString( "Query freed at stop: " .. value.q, 2 )
 		end
 		
 		disconnect( )
@@ -99,15 +103,13 @@ addEventHandler( "onResourceStop", resourceRoot,
 
 function escape_string( str )
 	if type( str ) == "string" then
-		return mysql_escape_string( connection, str )
+		return connection:prepareString( str )
 	elseif type( str ) == "number" then
 		return tostring( str )
 	end
 end
 
-local function query( str, ... )
-	checkConnection( )
-	
+local function joinArguments( str, ... )
 	if ( ... ) then
 		local t = { ... }
 		for k, v in ipairs( t ) do
@@ -115,122 +117,186 @@ local function query( str, ... )
 		end
 		str = str:format( unpack( t ) )
 	end
+
+	return str
+end
+
+local function query( str, ... )
+	reconnectIfDisconnected( )
 	
-	local result = mysql_query( connection, str )
-	if result then
-		for num = 1, max_results do
-			if not results[ num ] then
-				results[ num ] = { r = result, q = str }
+	str = joinArguments( str, ... )
+	
+	local query_handle = connection:query( str )
+	if query_handle then
+		for num = 1, max_query_handles do
+			if not query_handles[ num ] then
+				query_handles[ num ] = { instance = query_handle, q = str }
 				return num
 			end
 		end
-		mysql_free_result( result )
-		return false, "Unable to allocate result in pool"
+		query_handle:free( )
+		return false, "Unable to allocate query handle in pool"
 	end
-	return false, mysql_error( connection )
+
+	return false, "" -- Empty string used as mysql error string for compatibility reasons
+end
+
+local function isSourceResourceNotAllowed()
+	return sourceResource == getResourceFromName( "runcode" )
 end
 
 function query_free( str, ... )
-	if sourceResource == getResourceFromName( "runcode" ) then
+	if isSourceResourceNotAllowed() then
 		return false
 	end
 	
-	checkConnection( )
+	reconnectIfDisconnected( )
 	
-	if ( ... ) then
-		local t = { ... }
-		for k, v in ipairs( t ) do
-			t[ k ] = escape_string( tostring( v ) ) or ""
-		end
-		str = str:format( unpack( t ) )
-	end
+	str = joinArguments( str, ... )
 	
-	local result = mysql_query( connection, str )
-	if result then
-		mysql_free_result( result )
+	local query_handle = connection:query( str )
+	if query_handle then
+		query_handle:free( )
 		return true
 	end
-	return false, mysql_error( connection )
+
+	return false, "" -- Empty string used as mysql error string for compatibility reasons
 end
 
-function free_result( result )
-	if results[ result ] then
-		mysql_free_result( results[ result ].r )
-		results[ result ] = nil
+function free_query_handle( query_handle_index )
+	if query_handles[ query_handle_index ] then
+		query_handles[ query_handle_index ].instance:free( )
+		query_handles[ query_handle_index ] = nil
 	end
+end
+
+-- To be used when the query handle has already been freed.
+function remove_query_handle( query_handle_index )
+	if query_handles[ query_handle_index ] then
+		query_handles[ query_handle_index ] = nil
+	end
+end
+
+local function pollQueryHandleByIndex( query_handle_index, multiple_result )
+	local query_handle = query_handles[ query_handle_index ].instance
+	local result, error_code_or_affected_rows, error_or_id = query_handle:poll( poll_timeout, multiple_result )
+
+	return result, error_code_or_affected_rows, error_or_id
 end
 
 function query_assoc( str, ... )
-	if sourceResource == getResourceFromName( "runcode" ) then
+	if isSourceResourceNotAllowed() then
 		return false
 	end
 	
-	local t = { }
-	local result, error = query( str, ... )
-	if result then
-		for result, row in mysql_rows_assoc( results[ result ].r ) do
-			local num = #t + 1
-			t[ num ] = { }
-			for key, value in pairs( row ) do
-				if value ~= null then
-					t[ num ][ key ] = tonumber( value ) or value
+	local query_handle_index, error = query( str, ... )
+	if query_handle_index then
+		local result, error_code, error = pollQueryHandleByIndex( query_handle_index, false )
+
+		if result then
+			local t = { }
+
+			for i = 1, #result do 
+				t[ i ] = { }
+
+				local row = result[ i ]
+				for key, value in pairs( row ) do
+					if value ~= nil then
+						t[ i ][ key ] = tonumber( value ) or value
+					end
 				end
 			end
+
+			remove_query_handle( query_handle_index )
+			return t
+		elseif ( result == nil ) then
+			free_query_handle( query_handle_index )
+			error = "Poll timeout."
 		end
-		free_result( result )
-		return t
 	end
+
 	return false, error
 end
 
 function query_assoc_single( str, ... )
-	if sourceResource == getResourceFromName( "runcode" ) then
+	if isSourceResourceNotAllowed() then
 		return false
 	end
 	
-	local t = { }
-	local result, error = query( str, ... )
-	if result then
-		local row = mysql_fetch_assoc( results[ result ].r )
-		if row then
-			for key, value in pairs( row ) do
-				if value ~= null then
-					t[ key ] = tonumber( value ) or value
-				end
-			end
-			free_result( result )
-			return t
+	local query_handle_index, error = query( str, ... )
+	if query_handle_index then
+		local result, error_code, error = pollQueryHandleByIndex( query_handle_index, false )
+
+		if result then
+			--[[
+				We select the first element of the 'result' table as to simulate mysql_fetch_assoc().
+				Because this function creates a query each time it is called, there's no need to 
+					implement mysql_fetch_assoc's additional behaviour.
+			]]
+			local row = result[ 1 ]
+
+			remove_query_handle( query_handle_index )
+			return row
+		elseif ( result == nil ) then
+			free_query_handle( query_handle_index )
+			error = "Poll timeout."
 		end
-		free_result( result )
-		return false
+
+		remove_query_handle( query_handle_index )
+		return false, error
 	end
+
 	return false, error
 end
 
 function query_insertid( str, ... )
-	if sourceResource == getResourceFromName( "runcode" ) then
+	if isSourceResourceNotAllowed() then
 		return false
 	end
 	
-	local result, error = query( str, ... )
-	if result then
-		local id = mysql_insert_id( connection )
-		free_result( result )
-		return id
+	local query_handle_index, error = query( str, ... )
+	
+	if query_handle_index then
+		local result, affected_rows, error_or_id = pollQueryHandleByIndex( query_handle_index, false )
+
+		if result then
+			remove_query_handle( query_handle_index )
+			return error_or_id
+		elseif ( result == nil ) then
+			free_query_handle( query_handle_index )
+			error = "Poll timeout."
+		else
+			error = error_or_id
+		end
+
+		remove_query_handle( query_handle_index )
 	end
+
 	return false, error
 end
 
 function query_affected_rows( str, ... )
-	if sourceResource == getResourceFromName( "runcode" ) then
+	if isSourceResourceNotAllowed() then
 		return false
 	end
 	
-	local result, error = query( str, ... )
-	if result then
-		local rows = mysql_affected_rows( connection )
-		free_result( result )
-		return rows
+	local query_handle_index, error = query( str, ... )
+	
+	if query_handle_index then
+		local result, affected_rows, error_or_id = pollQueryHandleByIndex( query_handle_index, false )
+
+		if result then
+			remove_query_handle( query_handle_index )
+			return affected_rows
+		elseif ( result == nil ) then
+			free_query_handle( query_handle_index )
+			error = "Poll timeout."
+		else
+			error = error_or_id
+		end
+
+		remove_query_handle( query_handle_index )
 	end
+
 	return false, error
 end
