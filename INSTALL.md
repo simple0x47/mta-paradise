@@ -1,4 +1,4 @@
-# MTA: Paradise Installation
+# MTA: Paradise Extended Installation
 
 ## MySQL configuration
 
@@ -26,19 +26,7 @@ To make your server use your MySQL database, edit your *settings.xml* to at leas
 ## MTA Server configuration
 
 ### Obtaining the resources
-To get started, clone either the [main repository](git://github.com/marcusbauer/mta-paradise.git) or your fork into *mods/deathmatch*. It should already come with all configuration files required. 
-
-### Linux
-If you are using a linux server, edit your *mods/deathmatch/mtaserver.conf* and replace
-
-        <module src="mta_mysql.dll"/>
-
-with
-
-        <module src="mta_mysql.so"/>
-
-### Windows
-You need to copy the file *mods/deathmatch/modules/libmysql.dll* to your *MTA Server* directory (the one with MTA Server.exe in it)
+To get started, clone either the [main repository](git://github.com/marcusbauer/mta-paradise.git) or your fork into *mods/deathmatch*. It should already come with all configuration files required.
 
 ### Ready to go!
 
