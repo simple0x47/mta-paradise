@@ -1,4 +1,7 @@
 logs/
+backups/
+databases/
+modules/
 accounts.xml
 banlist.xml
 deathmatch.la
