@@ -1,5 +1,5 @@
 --[[
-Copyright (c) 2010 MTA: Paradise
+Copyright (c) 2021 MTA: Paradise Extended
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -57,7 +57,7 @@ addEventHandler( getResourceName( resource ) .. ":register", root,
 							end
 							
 							-- create the user
-							if exports.sql:query_free( "INSERT INTO wcf1_user (username,salt,password) VALUES ('%s', '%s', SHA1(CONCAT('%s', SHA1(CONCAT('%s', '" .. sha1( password ) .. "')))))", username, salt, salt, salt ) then
+							if exports.sql:query_free( "INSERT INTO wcf1_user (username,salt,password) VALUES ('%s', '%s', SHA1(CONCAT('%s', SHA1(CONCAT('%s', '" .. hash( "sha1", password ) .. "')))))", username, salt, salt, salt ) then
 								triggerClientEvent( source, getResourceName( resource ) .. ":registrationResult", source, 0 ) -- will automatically login when this is sent
 							else
 								triggerClientEvent( source, getResourceName( resource ) .. ":registrationResult", source, 4 )
