@@ -4,6 +4,10 @@ banlist.xml
 deathmatch.la
 deathmatch.so
 deathmatch.dll
+dbconmy.dll
+dbconmy.so
+libmysql.dll
+libmysql.so
 lua5.1.dll
 pcre3.dll
 pthreadVC2.dll
