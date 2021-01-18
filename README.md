@@ -23,5 +23,5 @@ The mode is completely scripted in Lua, giving everyone the chance to easily ado
 ### MySQL
 All dynamic data is saved within a MySQL database, this includes characters, vehicles, houses and so on. Retrieved from the database are all admin rights as well, making it possible to use MTA's Access Control List (ACL) in conjunction with our accounts from the database.
 
-### Module free
+### 100% Module Free!
 Modules sometimes prove to be error prone for beginners, that's why the extended version avoids you the headache caused by those dependencies.
