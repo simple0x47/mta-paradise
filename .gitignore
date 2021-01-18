@@ -23,4 +23,5 @@ runcode.zip
 vehiclecolors.conf
 .gitmodules
 *.log
+server-id.keys
 resources/players/token.xml
