@@ -1,5 +1,6 @@
-# MTA: Paradise
-... is a roleplay mode for [Multi Theft Auto: San Andreas](http://mtasa.com).
+# MTA: Paradise Extended
+... is a roleplay mode, based on [MTA: Paradise](https://github.com/mabako/mta-paradise) for [Multi Theft Auto: San Andreas](http://mtasa.com), whose objective
+is implementing the new functionalities of MTA SA and to refactor the code as script files are being edited.
 
 ## Features
 
@@ -20,4 +21,7 @@ For a small amount of money it's possible to rent or buy your own houses and bus
 The mode is completely scripted in Lua, giving everyone the chance to easily adopt and modify parts of it. Of course everyone is welcome to improve MTA: Paradise, and as a good start is to [fork the project](http://github.com/marcusbauer/mta-paradise/fork) at GitHub.
 
 ### MySQL
-All dynamic data is saved within a MySQL database, this includes characters, vehicles, houses and so on. This database is tied tightly with our forums and although it's possible to run the mode without it, certain features will only be possible over the forums in the current state of development. Retrieved from the database are all admin rights as well, making it possible to use MTA's Access Control List (ACL) in conjunction with our accounts from the database.
+All dynamic data is saved within a MySQL database, this includes characters, vehicles, houses and so on. Retrieved from the database are all admin rights as well, making it possible to use MTA's Access Control List (ACL) in conjunction with our accounts from the database.
+
+### 100% Module Free!
+Modules sometimes prove to be error prone for beginners, that's why the extended version avoids you the headache caused by those dependencies.
